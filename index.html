@@ -153,6 +153,38 @@
       min-height: 18px;
     }
 
+    /* 오른쪽 패널 레이아웃 */
+    .draw-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .draw-buttons {
+      margin-bottom: 8px;
+    }
+
+    .draw-log-container {
+      margin-top: 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px;
+      background-color: #fafafa;
+      height: 280px;         /* 필요하면 높이 조절 가능 */
+      overflow-y: auto;
+      font-size: 13px;
+    }
+
+    .draw-log-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .draw-log-line {
+      margin: 2px 0;
+      white-space: nowrap;
+    }
+
     /* 최종 자리 배치 모달 */
     .modal {
       position: fixed;
@@ -164,7 +196,6 @@
       z-index: 1000;
     }
 
-    /* hidden 클래스가 붙은 모달은 아예 숨김 */
     .modal.hidden {
       display: none;
     }
@@ -270,15 +301,24 @@
         <h2>3. 자리 배치</h2>
         <div id="seatGridDraw" class="grid"></div>
       </div>
-      <div>
-        <h2>4. 추첨 진행</h2>
-        <button id="drawSeatNumbersBtn">자리 번호 추첨</button><br />
-        <button id="startDrawBtn" style="margin-top: 8px;">추첨 시작</button>
-        <div class="info">
-          1) 먼저 "자리 번호 추첨"을 눌러 각 자리에 번호를 랜덤으로 부여합니다.<br />
-          2) 그 다음 "추첨 시작" 버튼을 누를 때마다 한 명씩 자리에 배정됩니다.
+      <div class="draw-panel">
+        <div>
+          <h2>4. 추첨 진행</h2>
+          <div class="draw-buttons">
+            <button id="drawSeatNumbersBtn">자리 번호 추첨</button><br />
+            <button id="startDrawBtn" style="margin-top: 8px;">추첨 시작</button>
+          </div>
+          <div class="info">
+            1) 먼저 "자리 번호 추첨"을 눌러 각 자리에 번호를 랜덤으로 부여합니다.<br />
+            2) 그 다음 "추첨 시작" 버튼을 누를 때마다 한 명씩 자리에 배정됩니다.
+          </div>
+          <div id="drawStatus" class="status-text"></div>
         </div>
-        <div id="drawStatus" class="status-text"></div>
+
+        <div class="draw-log-container">
+          <div class="draw-log-title">배정 내역</div>
+          <div id="drawLog"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -295,7 +335,6 @@
   </div>
 
   <script>
-    // ----- 상태 관리 -----
     const state = {
       rows: 0,
       cols: 0,
@@ -362,6 +401,7 @@
       document.getElementById("namesInput").value = "";
       document.getElementById("configStatus").textContent = "";
       document.getElementById("drawStatus").textContent = "";
+      document.getElementById("drawLog").innerHTML = "";
 
       document.getElementById("screen-config").classList.add("active");
       document.getElementById("screen-draw").classList.remove("active");
@@ -485,6 +525,8 @@
       const drawSeatNumbersBtn = document.getElementById("drawSeatNumbersBtn");
       const startDrawBtn = document.getElementById("startDrawBtn");
       const drawStatus = document.getElementById("drawStatus");
+      const drawLog = document.getElementById("drawLog");
+      const drawLogContainer = document.querySelector(".draw-log-container");
 
       const finalModal = document.getElementById("finalModal");
       const closeFinalModalBtn = document.getElementById("closeFinalModalBtn");
@@ -597,6 +639,7 @@
         document.getElementById("screen-draw").classList.add("active");
         renderDrawGrid();
         drawStatus.textContent = "먼저 '자리 번호 추첨' 버튼을 눌러 주세요.";
+        drawLog.innerHTML = "";
       });
 
       drawSeatNumbersBtn.addEventListener("click", () => {
@@ -625,6 +668,7 @@
 
         renderDrawGrid();
         drawStatus.textContent = "자리 번호가 랜덤으로 부여되었습니다. 이제 '추첨 시작'을 눌러 주세요.";
+        drawLog.innerHTML = "";
       });
 
       startDrawBtn.addEventListener("click", () => {
@@ -646,6 +690,7 @@
           state.drawingStarted = true;
 
           drawStatus.textContent = "추첨을 시작합니다. 버튼을 누를 때마다 한 명씩 배정됩니다.";
+          drawLog.innerHTML = "";
         }
 
         if (state.drawIndex >= state.drawOrder.length) {
@@ -660,14 +705,20 @@
         state.assignments[key] = student;
         renderDrawGrid();
 
-        drawStatus.textContent =
-          `${state.drawIndex + 1}번째 배정: ${student} → ${seat.seatNumber}번 자리`;
+        // 로그에 "n번 자리: 학생" 형태로 기록
+        const line = document.createElement("div");
+        line.className = "draw-log-line";
+        line.textContent = `${seat.seatNumber}번 자리: ${student}`;
+        drawLog.appendChild(line);
+        drawLogContainer.scrollTop = drawLogContainer.scrollHeight;
 
         state.drawIndex++;
 
         if (state.drawIndex === state.drawOrder.length) {
           drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
           showFinalModal();
+        } else {
+          drawStatus.textContent = `${state.drawIndex}명 배정 완료. 계속 진행해 주세요.`;
         }
       });
 
