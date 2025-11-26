@@ -5,53 +5,38 @@
   <title>자리 뽑기 시스템</title>
   <style>
     :root {
-      --seat-width: 80px;
-      --seat-height: 48px;
+      --seat-ratio-w: 5;
+      --seat-ratio-h: 3;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 0;
       padding: 16px;
+      background: #f5f5f7;
       min-height: 100vh;
-      background-color: #f5f5f7;
     }
 
-    h1 {
-      font-size: 24px;
-      margin: 0 0 16px 0;
-    }
-
-    h2 {
-      font-size: 20px;
-      margin-top: 0;
-      margin-bottom: 8px;
-    }
+    h1 { margin: 0 0 16px; font-size: 24px; }
+    h2 { margin: 0 0 8px; font-size: 20px; }
 
     .section {
+      background: white;
       border: 1px solid #ddd;
       border-radius: 8px;
       padding: 16px;
       margin-bottom: 16px;
-      background-color: #ffffff;
     }
 
-    label {
-      display: inline-block;
-      margin: 4px 0;
-    }
+    label { margin: 4px 0; display: inline-block; }
 
-    input[type="number"],
-    input[type="text"],
-    textarea {
+    input, textarea {
       padding: 4px 6px;
       margin: 4px 0;
-      border-radius: 4px;
       border: 1px solid #ccc;
+      border-radius: 4px;
       font-size: 14px;
     }
 
@@ -64,186 +49,110 @@
     button {
       margin-top: 8px;
       padding: 6px 12px;
-      font-size: 14px;
       border-radius: 4px;
       border: 1px solid #0070f3;
-      background-color: #0070f3;
+      background: #0070f3;
       color: white;
       cursor: pointer;
     }
 
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.5;
       cursor: default;
     }
 
-    .grid {
-      margin-top: 12px;
-      display: grid;
-      gap: 4px;
-    }
-
+    /** 자리 칸 — 크기 자동 확장 **/
     .seat {
-      width: var(--seat-width);
-      height: var(--seat-height);
-      border-radius: 4px;
+      width: 100%;
+      aspect-ratio: var(--seat-ratio-w) / var(--seat-ratio-h);
       border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fafafa;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
       user-select: none;
-      background-color: #fafafa;
-      text-align: center;
-      padding: 2px;
     }
 
-    .seat.excluded {
-      background-color: #eee;
-      color: #999;
-      border-style: dashed;
-    }
+    .seat.disabled { cursor: default; }
+    .seat.excluded { background: #eee; border-style: dashed; color: #888; }
+    .seat.assigned { background: #ffe08a; border-color: #f2b100; font-weight: bold; }
 
-    .seat.assigned {
-      background-color: #ffe08a;
-      border-color: #f2b100;
-      font-weight: bold;
-    }
+    .grid { display: grid; gap: 4px; margin-top: 12px; }
 
-    .seat.disabled {
-      cursor: default;
-    }
+    .radio-group { margin: 8px 0; }
+    .info { font-size: 13px; color: #666; }
+    .hidden { display: none; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .status-text { margin: 8px 0; min-height: 20px; }
 
-    .radio-group {
-      margin-top: 8px;
-      margin-bottom: 8px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .screen {
-      display: none;
-    }
-
-    .screen.active {
-      display: block;
-    }
-
+    /** 레이아웃 7:3 **/
     .layout-two-columns {
       display: grid;
       grid-template-columns: 7fr 3fr;
       gap: 24px;
-      width: 100%;
-      align-items: flex-start;
       min-height: calc(100vh - 80px);
     }
 
-    .info {
-      font-size: 13px;
-      color: #666;
-      margin-top: 4px;
-    }
-
-    .status-text {
-      margin-top: 8px;
-      font-size: 14px;
-      min-height: 18px;
-    }
-
-    /* 오른쪽 패널 레이아웃 */
+    /** 오른쪽 패널 **/
     .draw-panel {
       display: flex;
       flex-direction: column;
       height: 100%;
     }
 
-    .draw-buttons {
-      margin-bottom: 8px;
-    }
-
     .draw-log-container {
-      margin-top: 16px;
+      background: #fafafa;
       border: 1px solid #ddd;
       border-radius: 6px;
       padding: 8px;
-      background-color: #fafafa;
-      height: 280px;         /* 필요하면 높이 조절 가능 */
+      margin-top: 16px;
+      height: 300px;
       overflow-y: auto;
-      font-size: 13px;
     }
 
-    .draw-log-title {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
+    .draw-log-title { font-weight: bold; margin-bottom: 4px; }
+    .draw-log-line { margin: 2px 0; }
 
-    .draw-log-line {
-      margin: 2px 0;
-      white-space: nowrap;
-    }
-
-    /* 최종 자리 배치 모달 */
+    /** 모달 **/
     .modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.45);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1000;
     }
-
-    .modal.hidden {
-      display: none;
-    }
+    .modal.hidden { display: none; }
 
     .modal-content {
-      background: #ffffff;
-      border-radius: 8px;
+      background: white;
       padding: 20px;
+      border-radius: 8px;
       max-width: 90vw;
       max-height: 90vh;
       overflow: auto;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
-
-    .modal-title {
-      margin-top: 0;
-      margin-bottom: 12px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-
-    .modal-grid-wrapper {
-      margin-top: 8px;
-      margin-bottom: 16px;
     }
   </style>
 </head>
 <body>
+
   <h1>자리 뽑기 시스템</h1>
 
-  <!-- 1. 설정 화면 -->
+  <!-- 설정 화면 -->
   <div id="screen-config" class="screen active">
     <div class="section">
       <h2>1. 자리 설정</h2>
-      <div>
-        <label>행 수:
-          <input type="number" id="rowsInput" min="1" value="4" />
-        </label>
-        &nbsp;&nbsp;
-        <label>열 수:
-          <input type="number" id="colsInput" min="1" value="5" />
-        </label>
-        <br />
-        <button id="generateSeatsBtn">자리 생성</button>
-      </div>
-      <div class="info">
-        자리가 생성되면 칸을 클릭해서 제외할 자리를 선택할 수 있습니다.
-      </div>
+      <label>행 수: <input type="number" id="rowsInput" min="1" value="4"></label>
+      &nbsp;&nbsp;
+      <label>열 수: <input type="number" id="colsInput" min="1" value="5"></label>
+      <br>
+      <button id="generateSeatsBtn">자리 생성</button>
+      <div class="info">생성된 자리 칸을 클릭하면 제외할 수 있습니다.</div>
       <div id="seatGridConfig" class="grid"></div>
     </div>
 
@@ -251,42 +160,22 @@
       <h2>2. 학생 입력하기</h2>
 
       <div class="radio-group">
-        <label>
-          <input type="radio" name="studentMode" value="number" />
-          번호로 뽑기
-        </label>
+        <label><input type="radio" name="studentMode" value="number"> 번호로 뽑기</label>
         &nbsp;&nbsp;
-        <label>
-          <input type="radio" name="studentMode" value="name" />
-          이름으로 뽑기
-        </label>
+        <label><input type="radio" name="studentMode" value="name"> 이름으로 뽑기</label>
       </div>
 
-      <!-- 번호로 뽑기 -->
       <div id="studentNumberSection" class="hidden">
-        <label>시작 번호:
-          <input type="number" id="startNumberInput" min="1" />
-        </label>
+        <label>시작 번호: <input type="number" id="startNumberInput"></label>
         &nbsp;
-        <label>끝 번호:
-          <input type="number" id="endNumberInput" min="1" />
-        </label>
-        <br />
-        <label>제외할 번호(콤마로 구분):<br />
-          <input type="text" id="excludeNumbersInput" placeholder="예: 3,7,15" />
-        </label>
-        <div class="info">
-          예) 시작 1, 끝 30, 제외 3,7,15 → 1~30 중 3,7,15를 제외한 번호로 뽑기
-        </div>
+        <label>끝 번호: <input type="number" id="endNumberInput"></label>
+        <br>
+        <label>제외 번호: <input type="text" id="excludeNumbersInput" placeholder="예: 3,7,12"></label>
       </div>
 
-      <!-- 이름으로 뽑기 -->
       <div id="studentNameSection" class="hidden">
-        <label>이름들 (콤마로 구분해서 입력):</label><br />
-        <textarea id="namesInput" placeholder="예: 박민지, 이준형, 김단아"></textarea>
-        <div class="info">
-          예) <code>박민지, 이준형</code> 처럼 콤마(,)로 구분해서 입력하세요.
-        </div>
+        <label>이름 리스트(콤마로 구분):</label>
+        <textarea id="namesInput"></textarea>
       </div>
 
       <button id="goToDrawBtn">다음 단계</button>
@@ -294,23 +183,25 @@
     </div>
   </div>
 
-  <!-- 2. 추첨 화면 -->
+  <!-- 추첨 화면 -->
   <div id="screen-draw" class="screen">
     <div class="section layout-two-columns">
+
+      <!-- 자리 배치 -->
       <div>
         <h2>3. 자리 배치</h2>
         <div id="seatGridDraw" class="grid"></div>
       </div>
+
+      <!-- 추첨 -->
       <div class="draw-panel">
         <div>
           <h2>4. 추첨 진행</h2>
-          <div class="draw-buttons">
-            <button id="drawSeatNumbersBtn">자리 번호 추첨</button><br />
-            <button id="startDrawBtn" style="margin-top: 8px;">추첨 시작</button>
-          </div>
+          <button id="drawSeatNumbersBtn">자리 번호 추첨</button><br>
+          <button id="startDrawBtn" style="margin-top:8px;">추첨 시작</button>
           <div class="info">
-            1) 먼저 "자리 번호 추첨"을 눌러 각 자리에 번호를 랜덤으로 부여합니다.<br />
-            2) 그 다음 "추첨 시작" 버튼을 누를 때마다 한 명씩 자리에 배정됩니다.
+            먼저 자리 번호를 랜덤으로 부여한 뒤,<br>
+            '추첨 시작'을 누를 때마다 한 명씩 배정됩니다.
           </div>
           <div id="drawStatus" class="status-text"></div>
         </div>
@@ -320,417 +211,277 @@
           <div id="drawLog"></div>
         </div>
       </div>
+
     </div>
   </div>
 
   <!-- 최종 자리 배치 모달 -->
   <div id="finalModal" class="modal hidden">
     <div class="modal-content">
-      <h2 class="modal-title">최종 자리 배치</h2>
-      <div class="modal-grid-wrapper">
-        <div id="finalGrid" class="grid"></div>
-      </div>
-      <button id="closeFinalModalBtn">닫기</button>
+      <h2>최종 자리 배치</h2>
+      <div id="finalGrid" class="grid"></div>
+      <button id="closeFinalModalBtn" style="margin-top:12px;">닫기</button>
     </div>
   </div>
 
   <script>
+    /* 상태 관리 */
     const state = {
-      rows: 0,
-      cols: 0,
-      excludedSeats: new Set(),
-      students: [],
-      studentMode: null,
-      seatNumbers: {},
-      assignments: {},
-      seatNumbersAssigned: false,
-      drawingStarted: false,
-      activeSeatsOrdered: [],
-      drawOrder: [],
-      drawIndex: 0
+      rows:0, cols:0,
+      excluded:new Set(),
+      students:[],
+      mode:null,
+      seatNumbers:{},
+      assignments:{},
+      orderedSeats:[],
+      shuffleStudents:[],
+      index:0,
+      seatAssigned:false,
+      drawing:false
     };
 
-    function seatKey(row, col) {
-      return row + "-" + col;
-    }
+    const key=(r,c)=>`${r}-${c}`;
+    const shuffle=a=>{ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-
-    function getActiveSeats() {
-      const seats = [];
-      for (let r = 0; r < state.rows; r++) {
-        for (let c = 0; c < state.cols; c++) {
-          const key = seatKey(r, c);
-          if (!state.excludedSeats.has(key)) {
-            seats.push({ row: r, col: c });
-          }
+    /* 자리 활성 좌석 */
+    function activeSeats(){
+      const arr=[];
+      for(let r=0;r<state.rows;r++){
+        for(let c=0;c<state.cols;c++){
+          if(!state.excluded.has(key(r,c))) arr.push({row:r,col:c});
         }
       }
-      return seats;
+      return arr;
     }
 
-    function resetAll() {
-      state.rows = 0;
-      state.cols = 0;
-      state.excludedSeats = new Set();
-      state.students = [];
-      state.studentMode = null;
-      state.seatNumbers = {};
-      state.assignments = {};
-      state.seatNumbersAssigned = false;
-      state.drawingStarted = false;
-      state.activeSeatsOrdered = [];
-      state.drawOrder = [];
-      state.drawIndex = 0;
+    /* 그리드 렌더링 (공통) */
+    function renderGrid(targetId, seatsData, final=false){
+      const grid=document.getElementById(targetId);
+      grid.innerHTML="";
+      grid.style.gridTemplateColumns=`repeat(${state.cols}, 1fr)`;   /* 핵심: 칸 자동 확장 */
 
-      document.getElementById("rowsInput").value = 4;
-      document.getElementById("colsInput").value = 5;
-      document.getElementById("seatGridConfig").innerHTML = "";
-      document.getElementById("studentNumberSection").classList.add("hidden");
-      document.getElementById("studentNameSection").classList.add("hidden");
-      document.querySelectorAll("input[name='studentMode']").forEach(r => r.checked = false);
-      document.getElementById("startNumberInput").value = "";
-      document.getElementById("endNumberInput").value = "";
-      document.getElementById("excludeNumbersInput").value = "";
-      document.getElementById("namesInput").value = "";
-      document.getElementById("configStatus").textContent = "";
-      document.getElementById("drawStatus").textContent = "";
-      document.getElementById("drawLog").innerHTML = "";
+      for(let r=0;r<state.rows;r++){
+        for(let c=0;c<state.cols;c++){
+          const k=key(r,c);
+          const div=document.createElement("div");
+          div.className="seat disabled";
+
+          if(state.excluded.has(k)){
+            div.classList.add("excluded");
+            div.textContent="X";
+          } else {
+            if(final){
+              div.textContent = state.assignments[k] ?? state.seatNumbers[k] ?? "";
+              if(state.assignments[k]) div.classList.add("assigned");
+            } else {
+              const val = seatsData[k];
+              if(val){ div.textContent=val; if(state.assignments[k]) div.classList.add("assigned"); }
+            }
+          }
+          grid.appendChild(div);
+        }
+      }
+    }
+
+    /* 자리 생성 화면용 */
+    function renderConfigGrid(){
+      const grid=document.getElementById("seatGridConfig");
+      grid.innerHTML="";
+      grid.style.gridTemplateColumns=`repeat(${state.cols}, 1fr)`;
+
+      for(let r=0;r<state.rows;r++){
+        for(let c=0;c<state.cols;c++){
+          const k=key(r,c);
+          const div=document.createElement("div");
+          div.className="seat";
+          if(state.excluded.has(k)) div.classList.add("excluded");
+
+          div.onclick=()=>{
+            if(state.excluded.has(k)){ state.excluded.delete(k); div.classList.remove("excluded"); }
+            else{ state.excluded.add(k); div.classList.add("excluded"); }
+          };
+
+          grid.appendChild(div);
+        }
+      }
+    }
+
+    /* 최종 모달 */
+    function showFinal(){
+      renderGrid("finalGrid", state.seatNumbers, true);
+      document.getElementById("finalModal").classList.remove("hidden");
+    }
+
+    function resetAll(){
+      state.rows=0;
+      state.cols=0;
+      state.excluded=new Set();
+      state.students=[];
+      state.mode=null;
+      state.seatNumbers={};
+      state.assignments={};
+      state.orderedSeats=[];
+      state.shuffleStudents=[];
+      state.index=0;
+      state.seatAssigned=false;
+      state.drawing=false;
+
+      document.getElementById("seatGridConfig").innerHTML="";
+      document.getElementById("drawLog").innerHTML="";
 
       document.getElementById("screen-config").classList.add("active");
       document.getElementById("screen-draw").classList.remove("active");
       document.getElementById("finalModal").classList.add("hidden");
     }
 
-    function renderConfigGrid() {
-      const grid = document.getElementById("seatGridConfig");
-      grid.innerHTML = "";
-      if (!state.rows || !state.cols) return;
+    document.addEventListener("DOMContentLoaded",()=>{
 
-      grid.style.gridTemplateColumns = `repeat(${state.cols}, var(--seat-width))`;
+      const drawStatus=document.getElementById("drawStatus");
+      const drawLog=document.getElementById("drawLog");
 
-      for (let r = 0; r < state.rows; r++) {
-        for (let c = 0; c < state.cols; c++) {
-          const key = seatKey(r, c);
-          const seatDiv = document.createElement("div");
-          seatDiv.className = "seat";
-          if (state.excludedSeats.has(key)) {
-            seatDiv.classList.add("excluded");
-          }
-          seatDiv.textContent = "";
-          seatDiv.dataset.row = r;
-          seatDiv.dataset.col = c;
-
-          seatDiv.addEventListener("click", () => {
-            if (state.excludedSeats.has(key)) {
-              state.excludedSeats.delete(key);
-              seatDiv.classList.remove("excluded");
-            } else {
-              state.excludedSeats.add(key);
-              seatDiv.classList.add("excluded");
-            }
-          });
-
-          grid.appendChild(seatDiv);
-        }
-      }
-    }
-
-    function renderDrawGrid() {
-      const grid = document.getElementById("seatGridDraw");
-      grid.innerHTML = "";
-      grid.style.gridTemplateColumns = `repeat(${state.cols}, var(--seat-width))`;
-
-      for (let r = 0; r < state.rows; r++) {
-        for (let c = 0; c < state.cols; c++) {
-          const key = seatKey(r, c);
-          const seatDiv = document.createElement("div");
-          seatDiv.className = "seat disabled";
-
-          if (state.excludedSeats.has(key)) {
-            seatDiv.classList.add("excluded");
-            seatDiv.textContent = "X";
-          } else {
-            if (state.assignments[key]) {
-              seatDiv.classList.add("assigned");
-              seatDiv.textContent = state.assignments[key];
-            } else if (state.seatNumbers[key]) {
-              seatDiv.textContent = state.seatNumbers[key];
-            } else {
-              seatDiv.textContent = "";
-            }
-          }
-
-          grid.appendChild(seatDiv);
-        }
-      }
-    }
-
-    function renderFinalGrid() {
-      const finalGrid = document.getElementById("finalGrid");
-      finalGrid.innerHTML = "";
-      finalGrid.style.gridTemplateColumns = `repeat(${state.cols}, var(--seat-width))`;
-
-      for (let r = 0; r < state.rows; r++) {
-        for (let c = 0; c < state.cols; c++) {
-          const key = seatKey(r, c);
-          const seatDiv = document.createElement("div");
-          seatDiv.className = "seat disabled";
-
-          if (state.excludedSeats.has(key)) {
-            seatDiv.classList.add("excluded");
-            seatDiv.textContent = "X";
-          } else {
-            if (state.assignments[key]) {
-              seatDiv.classList.add("assigned");
-              seatDiv.textContent = state.assignments[key];
-            } else if (state.seatNumbers[key]) {
-              seatDiv.textContent = state.seatNumbers[key];
-            } else {
-              seatDiv.textContent = "";
-            }
-          }
-
-          finalGrid.appendChild(seatDiv);
-        }
-      }
-    }
-
-    function showFinalModal() {
-      renderFinalGrid();
-      document.getElementById("finalModal").classList.remove("hidden");
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const rowsInput = document.getElementById("rowsInput");
-      const colsInput = document.getElementById("colsInput");
-      const generateSeatsBtn = document.getElementById("generateSeatsBtn");
-      const goToDrawBtn = document.getElementById("goToDrawBtn");
-      const configStatus = document.getElementById("configStatus");
-
-      const studentNumberSection = document.getElementById("studentNumberSection");
-      const studentNameSection = document.getElementById("studentNameSection");
-
-      const startNumberInput = document.getElementById("startNumberInput");
-      const endNumberInput = document.getElementById("endNumberInput");
-      const excludeNumbersInput = document.getElementById("excludeNumbersInput");
-      const namesInput = document.getElementById("namesInput");
-
-      const drawSeatNumbersBtn = document.getElementById("drawSeatNumbersBtn");
-      const startDrawBtn = document.getElementById("startDrawBtn");
-      const drawStatus = document.getElementById("drawStatus");
-      const drawLog = document.getElementById("drawLog");
-      const drawLogContainer = document.querySelector(".draw-log-container");
-
-      const finalModal = document.getElementById("finalModal");
-      const closeFinalModalBtn = document.getElementById("closeFinalModalBtn");
-
-      document.querySelectorAll("input[name='studentMode']").forEach(radio => {
-        radio.addEventListener("change", (e) => {
-          const mode = e.target.value;
-          state.studentMode = mode;
-          if (mode === "number") {
-            studentNumberSection.classList.remove("hidden");
-            studentNameSection.classList.add("hidden");
-          } else {
-            studentNameSection.classList.remove("hidden");
-            studentNumberSection.classList.add("hidden");
-          }
-        });
+      /* 학생 입력 방식 */
+      document.querySelectorAll("input[name='studentMode']").forEach(r=>{
+        r.onchange=()=>{
+          state.mode=r.value;
+          document.getElementById("studentNumberSection").classList.toggle("hidden", r.value!=="number");
+          document.getElementById("studentNameSection").classList.toggle("hidden", r.value!=="name");
+        };
       });
 
-      generateSeatsBtn.addEventListener("click", () => {
-        const rows = parseInt(rowsInput.value, 10);
-        const cols = parseInt(colsInput.value, 10);
+      /* 자리 생성 */
+      document.getElementById("generateSeatsBtn").onclick=()=>{
+        const rows=parseInt(document.getElementById("rowsInput").value);
+        const cols=parseInt(document.getElementById("colsInput").value);
 
-        if (!rows || !cols || rows <= 0 || cols <= 0) {
-          alert("행 수와 열 수를 올바르게 입력하세요.");
-          return;
-        }
+        if(rows<=0||cols<=0){ alert("행, 열을 다시 입력하세요."); return; }
 
-        state.rows = rows;
-        state.cols = cols;
-        state.excludedSeats = new Set();
-        configStatus.textContent = "자리가 생성되었습니다. 제외할 자리를 클릭해서 선택하세요.";
+        state.rows=rows;
+        state.cols=cols;
+        state.excluded=new Set();
+
+        document.getElementById("configStatus").textContent="자리가 생성되었습니다. 제외할 자리를 클릭하세요.";
         renderConfigGrid();
-      });
+      };
 
-      goToDrawBtn.addEventListener("click", () => {
-        if (!state.rows || !state.cols) {
-          alert("먼저 행 수와 열 수를 입력하고 '자리 생성'을 눌러 주세요.");
-          return;
+      /* 다음 단계 */
+      document.getElementById("goToDrawBtn").onclick=()=>{
+        if(!state.rows||!state.cols){ alert("먼저 자리를 생성하세요."); return; }
+        if(!state.mode){ alert("학생 입력 방식을 선택하세요."); return; }
+
+        let students=[];
+        if(state.mode==="number"){
+          const s=parseInt(document.getElementById("startNumberInput").value);
+          const e=parseInt(document.getElementById("endNumberInput").value);
+          if(!s || !e || s>e){ alert("번호 입력 오류"); return; }
+
+          const exc=document.getElementById("excludeNumbersInput").value;
+          const exSet=new Set(exc.split(",").map(v=>parseInt(v.trim())).filter(v=>!isNaN(v)));
+
+          for(let i=s;i<=e;i++){ if(!exSet.has(i)) students.push(String(i)); }
+        } else {
+          const arr=document.getElementById("namesInput").value.split(",").map(v=>v.trim()).filter(v=>v);
+          students=arr;
         }
 
-        if (!state.studentMode) {
-          alert("학생 입력 방식을 선택해 주세요. (번호로 뽑기 / 이름으로 뽑기)");
-          return;
-        }
-
-        const activeSeats = getActiveSeats();
-        const seatCount = activeSeats.length;
-        if (seatCount === 0) {
-          alert("사용 가능한 자리가 없습니다. 제외 자리를 다시 설정해 주세요.");
-          return;
-        }
-
-        let students = [];
-
-        if (state.studentMode === "number") {
-          const start = parseInt(startNumberInput.value, 10);
-          const end = parseInt(endNumberInput.value, 10);
-
-          if (!start || !end || start > end) {
-            alert("시작 번호와 끝 번호를 올바르게 입력하세요.");
-            return;
-          }
-
-          const excludeText = excludeNumbersInput.value.trim();
-          const excludeSet = new Set();
-          if (excludeText) {
-            excludeText.split(",").forEach(v => {
-              const num = parseInt(v.trim(), 10);
-              if (!isNaN(num)) excludeSet.add(num);
-            });
-          }
-
-          for (let n = start; n <= end; n++) {
-            if (!excludeSet.has(n)) {
-              students.push(String(n));
-            }
-          }
-        } else if (state.studentMode === "name") {
-          const text = namesInput.value.trim();
-          if (!text) {
-            alert("이름을 입력해 주세요.");
-            return;
-          }
-          students = text.split(",").map(v => v.trim()).filter(v => v.length > 0);
-        }
-
-        if (students.length === 0) {
-          alert("학생 목록이 비어 있습니다. 입력을 확인해 주세요.");
-          return;
-        }
-
-        if (students.length !== seatCount) {
-          alert("자리의 수와 학생의 수가 일치하지 않습니다. 다시 시도해주세요.");
+        const seats=activeSeats();
+        if(students.length!==seats.length){
+          alert("자리 수와 학생 수가 일치하지 않습니다.");
           resetAll();
           return;
         }
 
-        state.students = students.slice();
-        state.seatNumbers = {};
-        state.assignments = {};
-        state.seatNumbersAssigned = false;
-        state.drawingStarted = false;
-        state.activeSeatsOrdered = [];
-        state.drawOrder = [];
-        state.drawIndex = 0;
-
-        configStatus.textContent = "학생 수와 자리 수가 일치합니다. 추첨 화면으로 이동합니다.";
+        state.students=students;
 
         document.getElementById("screen-config").classList.remove("active");
         document.getElementById("screen-draw").classList.add("active");
-        renderDrawGrid();
-        drawStatus.textContent = "먼저 '자리 번호 추첨' 버튼을 눌러 주세요.";
-        drawLog.innerHTML = "";
-      });
 
-      drawSeatNumbersBtn.addEventListener("click", () => {
-        const activeSeats = getActiveSeats();
-        const n = activeSeats.length;
-        if (n === 0) {
-          alert("사용 가능한 자리가 없습니다.");
+        renderGrid("seatGridDraw", {});
+        drawStatus.textContent="먼저 '자리 번호 추첨'을 눌러주세요.";
+        drawLog.innerHTML="";
+      };
+
+      /* 자리 번호 추첨 */
+      document.getElementById("drawSeatNumbersBtn").onclick=()=>{
+        const seats=activeSeats();
+        const cnt=seats.length;
+
+        const arr=[...Array(cnt).keys()];
+        shuffle(arr);
+
+        state.seatNumbers={};
+        for(let i=0;i<cnt;i++){
+          const st=seats[arr[i]];
+          state.seatNumbers[key(st.row,st.col)] = i+1;
+        }
+
+        state.assignments={};
+        state.drawing=false;
+        state.index=0;
+
+        renderGrid("seatGridDraw", state.seatNumbers);
+        drawStatus.textContent="자리 번호가 부여되었습니다. '추첨 시작'을 눌러주세요.";
+        drawLog.innerHTML="";
+      };
+
+      /* 추첨 시작 */
+      document.getElementById("startDrawBtn").onclick=()=>{
+        if(Object.keys(state.seatNumbers).length===0){
+          alert("먼저 자리 번호를 추첨하세요.");
           return;
         }
 
-        const indices = Array.from({ length: n }, (_, i) => i);
-        shuffle(indices);
+        if(!state.drawing){
+          const seats=activeSeats().map(s=>({
+            ...s,
+            seatNumber:state.seatNumbers[key(s.row,s.col)]
+          })).sort((a,b)=>a.seatNumber-b.seatNumber);
 
-        state.seatNumbers = {};
-        for (let i = 0; i < n; i++) {
-          const seat = activeSeats[indices[i]];
-          const key = seatKey(seat.row, seat.col);
-          state.seatNumbers[key] = i + 1;
+          state.orderedSeats=seats;
+          state.shuffleStudents=shuffle(state.students.slice());
+          state.index=0;
+          state.drawing=true;
+          drawLog.innerHTML="";
+          drawStatus.textContent="추첨 시작. 버튼을 누를 때마다 배정됩니다.";
         }
-        state.assignments = {};
-        state.seatNumbersAssigned = true;
-        state.drawingStarted = false;
-        state.activeSeatsOrdered = [];
-        state.drawOrder = [];
-        state.drawIndex = 0;
 
-        renderDrawGrid();
-        drawStatus.textContent = "자리 번호가 랜덤으로 부여되었습니다. 이제 '추첨 시작'을 눌러 주세요.";
-        drawLog.innerHTML = "";
-      });
-
-      startDrawBtn.addEventListener("click", () => {
-        if (!state.seatNumbersAssigned) {
-          alert("먼저 '자리 번호 추첨'을 해 주세요.");
+        if(state.index>=state.shuffleStudents.length){
+          drawStatus.textContent="모든 학생 배정 완료.";
+          showFinal();
           return;
         }
 
-        if (!state.drawingStarted) {
-          const activeSeats = getActiveSeats().map(s => {
-            const key = seatKey(s.row, s.col);
-            return { ...s, seatNumber: state.seatNumbers[key] };
-          });
-          activeSeats.sort((a, b) => a.seatNumber - b.seatNumber);
+        const stu=state.shuffleStudents[state.index];
+        const seat=state.orderedSeats[state.index];
+        const k=key(seat.row,seat.col);
+        state.assignments[k]=stu;
 
-          state.activeSeatsOrdered = activeSeats;
-          state.drawOrder = shuffle(state.students.slice());
-          state.drawIndex = 0;
-          state.drawingStarted = true;
+        renderGrid("seatGridDraw", state.seatNumbers);
 
-          drawStatus.textContent = "추첨을 시작합니다. 버튼을 누를 때마다 한 명씩 배정됩니다.";
-          drawLog.innerHTML = "";
-        }
-
-        if (state.drawIndex >= state.drawOrder.length) {
-          drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
-          showFinalModal();
-          return;
-        }
-
-        const student = state.drawOrder[state.drawIndex];
-        const seat = state.activeSeatsOrdered[state.drawIndex];
-        const key = seatKey(seat.row, seat.col);
-        state.assignments[key] = student;
-        renderDrawGrid();
-
-        // 로그에 "n번 자리: 학생" 형태로 기록
-        const line = document.createElement("div");
-        line.className = "draw-log-line";
-        line.textContent = `${seat.seatNumber}번 자리: ${student}`;
+        /* 로그 기록 */
+        const line=document.createElement("div");
+        line.className="draw-log-line";
+        line.textContent=`${seat.seatNumber}번 자리: ${stu}`;
         drawLog.appendChild(line);
-        drawLogContainer.scrollTop = drawLogContainer.scrollHeight;
+        const logBox=document.querySelector(".draw-log-container");
+        logBox.scrollTop=logBox.scrollHeight;
 
-        state.drawIndex++;
+        state.index++;
 
-        if (state.drawIndex === state.drawOrder.length) {
-          drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
-          showFinalModal();
+        if(state.index===state.shuffleStudents.length){
+          drawStatus.textContent="모든 학생 배정 완료.";
+          showFinal();
         } else {
-          drawStatus.textContent = `${state.drawIndex}명 배정 완료. 계속 진행해 주세요.`;
+          drawStatus.textContent=`${state.index}명 배정됨. 계속 진행하세요.`;
         }
-      });
+      };
 
-      closeFinalModalBtn.addEventListener("click", () => {
-        finalModal.classList.add("hidden");
-      });
+      document.getElementById("closeFinalModalBtn").onclick=()=>{
+        document.getElementById("finalModal").classList.add("hidden");
+      };
 
-      finalModal.addEventListener("click", (e) => {
-        if (e.target === finalModal) {
-          finalModal.classList.add("hidden");
-        }
-      });
+      document.getElementById("finalModal").onclick=e=>{
+        if(e.target.id==="finalModal") e.target.classList.add("hidden");
+      };
 
       resetAll();
     });
