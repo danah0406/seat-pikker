@@ -4,21 +4,31 @@
   <meta charset="UTF-8" />
   <title>자리 뽑기 시스템</title>
   <style>
+    :root {
+      --seat-width: 80px;
+      --seat-height: 48px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 0 16px;
+      margin: 0;
+      padding: 16px;
+      min-height: 100vh;
+      background-color: #f5f5f7;
     }
 
     h1 {
       font-size: 24px;
-      margin-bottom: 16px;
+      margin: 0 0 16px 0;
     }
 
     h2 {
       font-size: 20px;
-      margin-top: 24px;
+      margin-top: 0;
       margin-bottom: 8px;
     }
 
@@ -27,6 +37,7 @@
       border-radius: 8px;
       padding: 16px;
       margin-bottom: 16px;
+      background-color: #ffffff;
     }
 
     label {
@@ -73,8 +84,8 @@
     }
 
     .seat {
-      width: 44px;
-      height: 44px;
+      width: var(--seat-width);
+      height: var(--seat-height);
       border-radius: 4px;
       border: 1px solid #ccc;
       display: flex;
@@ -84,6 +95,8 @@
       cursor: pointer;
       user-select: none;
       background-color: #fafafa;
+      text-align: center;
+      padding: 2px;
     }
 
     .seat.excluded {
@@ -121,9 +134,11 @@
 
     .layout-two-columns {
       display: grid;
-      grid-template-columns: 1.4fr 1fr;
-      gap: 16px;
+      grid-template-columns: 7fr 3fr;
+      gap: 24px;
+      width: 100%;
       align-items: flex-start;
+      min-height: calc(100vh - 80px);
     }
 
     .info {
@@ -136,6 +151,39 @@
       margin-top: 8px;
       font-size: 14px;
       min-height: 18px;
+    }
+
+    /* 최종 자리 배치 모달 */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-title {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .modal-grid-wrapper {
+      margin-top: 8px;
+      margin-bottom: 16px;
     }
   </style>
 </head>
@@ -223,10 +271,21 @@
         <button id="startDrawBtn" style="margin-top: 8px;">추첨 시작</button>
         <div class="info">
           1) 먼저 "자리 번호 추첨"을 눌러 각 자리에 번호를 랜덤으로 부여합니다.<br />
-          2) 그 다음 "추첨 시작"을 누르면 학생을 한 명씩 뽑아 순서대로 자리에 배정합니다.
+          2) 그 다음 "추첨 시작" 버튼을 누를 때마다 한 명씩 자리에 배정됩니다.
         </div>
         <div id="drawStatus" class="status-text"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 최종 자리 배치 모달 -->
+  <div id="finalModal" class="modal hidden">
+    <div class="modal-content">
+      <h2 class="modal-title">최종 자리 배치</h2>
+      <div class="modal-grid-wrapper">
+        <div id="finalGrid" class="grid"></div>
+      </div>
+      <button id="closeFinalModalBtn">닫기</button>
     </div>
   </div>
 
@@ -241,7 +300,10 @@
       seatNumbers: {},           // key: "r-c" -> 자리 번호 (1..N)
       assignments: {},           // key: "r-c" -> 학생 (이름/번호)
       seatNumbersAssigned: false,
-      drawingInProgress: false
+      drawingStarted: false,
+      activeSeatsOrdered: [],    // 자리번호 순서대로 정렬된 좌석
+      drawOrder: [],             // 섞인 학생 목록
+      drawIndex: 0               // 현재까지 배정한 인원 수
     };
 
     // ----- 유틸 -----
@@ -271,7 +333,6 @@
     }
 
     function resetAll() {
-      // 전체 초기화 (자리 수/학생 수 불일치 등의 경우)
       state.rows = 0;
       state.cols = 0;
       state.excludedSeats = new Set();
@@ -280,7 +341,10 @@
       state.seatNumbers = {};
       state.assignments = {};
       state.seatNumbersAssigned = false;
-      state.drawingInProgress = false;
+      state.drawingStarted = false;
+      state.activeSeatsOrdered = [];
+      state.drawOrder = [];
+      state.drawIndex = 0;
 
       document.getElementById("rowsInput").value = 4;
       document.getElementById("colsInput").value = 5;
@@ -297,6 +361,7 @@
 
       document.getElementById("screen-config").classList.add("active");
       document.getElementById("screen-draw").classList.remove("active");
+      document.getElementById("finalModal").classList.add("hidden");
     }
 
     // ----- 설정 화면: 자리 생성 -----
@@ -305,7 +370,7 @@
       grid.innerHTML = "";
       if (!state.rows || !state.cols) return;
 
-      grid.style.gridTemplateColumns = `repeat(${state.cols}, 44px)`;
+      grid.style.gridTemplateColumns = `repeat(${state.cols}, var(--seat-width))`;
 
       for (let r = 0; r < state.rows; r++) {
         for (let c = 0; c < state.cols; c++) {
@@ -320,7 +385,6 @@
           seatDiv.dataset.col = c;
 
           seatDiv.addEventListener("click", () => {
-            // 제외 토글
             if (state.excludedSeats.has(key)) {
               state.excludedSeats.delete(key);
               seatDiv.classList.remove("excluded");
@@ -339,7 +403,7 @@
     function renderDrawGrid() {
       const grid = document.getElementById("seatGridDraw");
       grid.innerHTML = "";
-      grid.style.gridTemplateColumns = `repeat(${state.cols}, 44px)`;
+      grid.style.gridTemplateColumns = `repeat(${state.cols}, var(--seat-width))`;
 
       for (let r = 0; r < state.rows; r++) {
         for (let c = 0; c < state.cols; c++) {
@@ -351,12 +415,10 @@
             seatDiv.classList.add("excluded");
             seatDiv.textContent = "X";
           } else {
-            // 배정된 학생이 있으면 학생 이름/번호 표시
             if (state.assignments[key]) {
               seatDiv.classList.add("assigned");
               seatDiv.textContent = state.assignments[key];
             } else if (state.seatNumbers[key]) {
-              // 아직 배정 안 됐지만 자리 번호는 있음
               seatDiv.textContent = state.seatNumbers[key];
             } else {
               seatDiv.textContent = "";
@@ -366,6 +428,45 @@
           grid.appendChild(seatDiv);
         }
       }
+    }
+
+    // ----- 최종 자리 배치 모달 렌더링 -----
+    function renderFinalGrid() {
+      const finalGrid = document.getElementById("finalGrid");
+      finalGrid.innerHTML = "";
+      finalGrid.style.gridTemplateColumns = `repeat(${state.cols}, var(--seat-width))`;
+
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const key = seatKey(r, c);
+          const seatDiv = document.createElement("div");
+          seatDiv.className = "seat disabled";
+
+          if (state.excludedSeats.has(key)) {
+            seatDiv.classList.add("excluded");
+            seatDiv.textContent = "X";
+          } else {
+            if (state.assignments[key]) {
+              seatDiv.classList.add("assigned");
+              seatDiv.textContent = state.assignments[key];
+            } else {
+              // 이론상 여기 올 일은 없지만, 안전하게 자리 번호 또는 빈 칸 처리
+              if (state.seatNumbers[key]) {
+                seatDiv.textContent = state.seatNumbers[key];
+              } else {
+                seatDiv.textContent = "";
+              }
+            }
+          }
+
+          finalGrid.appendChild(seatDiv);
+        }
+      }
+    }
+
+    function showFinalModal() {
+      renderFinalGrid();
+      document.getElementById("finalModal").classList.remove("hidden");
     }
 
     // ----- 이벤트 바인딩 -----
@@ -387,6 +488,9 @@
       const drawSeatNumbersBtn = document.getElementById("drawSeatNumbersBtn");
       const startDrawBtn = document.getElementById("startDrawBtn");
       const drawStatus = document.getElementById("drawStatus");
+
+      const finalModal = document.getElementById("finalModal");
+      const closeFinalModalBtn = document.getElementById("closeFinalModalBtn");
 
       // 학생 입력 방식 선택
       document.querySelectorAll("input[name='studentMode']").forEach(radio => {
@@ -485,11 +589,14 @@
         }
 
         // 유효하면 상태 저장 후 추첨 화면으로 이동
-        state.students = students.slice();  // 복사
+        state.students = students.slice();
         state.seatNumbers = {};
         state.assignments = {};
         state.seatNumbersAssigned = false;
-        state.drawingInProgress = false;
+        state.drawingStarted = false;
+        state.activeSeatsOrdered = [];
+        state.drawOrder = [];
+        state.drawIndex = 0;
 
         configStatus.textContent = "학생 수와 자리 수가 일치합니다. 추첨 화면으로 이동합니다.";
 
@@ -501,11 +608,6 @@
 
       // 자리 번호 추첨
       drawSeatNumbersBtn.addEventListener("click", () => {
-        if (state.drawingInProgress) {
-          alert("추첨이 진행 중입니다. 잠시만 기다려 주세요.");
-          return;
-        }
-
         const activeSeats = getActiveSeats();
         const n = activeSeats.length;
         if (n === 0) {
@@ -524,55 +626,76 @@
         }
         state.assignments = {};
         state.seatNumbersAssigned = true;
+        state.drawingStarted = false;
+        state.activeSeatsOrdered = [];
+        state.drawOrder = [];
+        state.drawIndex = 0;
+
         renderDrawGrid();
         drawStatus.textContent = "자리 번호가 랜덤으로 부여되었습니다. 이제 '추첨 시작'을 눌러 주세요.";
       });
 
-      // 추첨 시작
+      // 추첨 시작 (한 번 클릭할 때마다 한 명씩 배정)
       startDrawBtn.addEventListener("click", () => {
         if (!state.seatNumbersAssigned) {
           alert("먼저 '자리 번호 추첨'을 해 주세요.");
           return;
         }
-        if (state.drawingInProgress) {
+
+        // 아직 추첨이 시작되지 않았다면 초기 세팅
+        if (!state.drawingStarted) {
+          const activeSeats = getActiveSeats().map(s => {
+            const key = seatKey(s.row, s.col);
+            return { ...s, seatNumber: state.seatNumbers[key] };
+          });
+          activeSeats.sort((a, b) => a.seatNumber - b.seatNumber);
+
+          state.activeSeatsOrdered = activeSeats;
+          state.drawOrder = shuffle(state.students.slice());
+          state.drawIndex = 0;
+          state.drawingStarted = true;
+
+          drawStatus.textContent = "추첨을 시작합니다. 버튼을 누를 때마다 한 명씩 배정됩니다.";
+        }
+
+        // 이미 전부 배정이 끝난 경우
+        if (state.drawIndex >= state.drawOrder.length) {
+          drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
+          showFinalModal();
           return;
         }
 
-        const activeSeats = getActiveSeats().map(s => {
-          const key = seatKey(s.row, s.col);
-          return { ...s, seatNumber: state.seatNumbers[key] };
-        });
-        activeSeats.sort((a, b) => a.seatNumber - b.seatNumber);
+        // 다음 학생 한 명 배정
+        const student = state.drawOrder[state.drawIndex];
+        const seat = state.activeSeatsOrdered[state.drawIndex];
+        const key = seatKey(seat.row, seat.col);
+        state.assignments[key] = student;
+        renderDrawGrid();
 
-        let drawOrder = shuffle(state.students.slice());
-        let index = 0;
+        drawStatus.textContent =
+          `${state.drawIndex + 1}번째 배정: ${student} → ${seat.seatNumber}번 자리`;
 
-        state.assignments = {};
-        state.drawingInProgress = true;
-        drawStatus.textContent = "추첨을 진행 중입니다...";
+        state.drawIndex++;
 
-        const intervalId = setInterval(() => {
-          if (index >= drawOrder.length) {
-            clearInterval(intervalId);
-            state.drawingInProgress = false;
-            drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
-            return;
-          }
-
-          const student = drawOrder[index];
-          const seat = activeSeats[index];
-          const key = seatKey(seat.row, seat.col);
-          state.assignments[key] = student;
-          renderDrawGrid();
-
-          drawStatus.textContent =
-            `${index + 1}번째 배정: ${student} → ${seat.seatNumber}번 자리`;
-
-          index++;
-        }, 800); // 0.8초 간격으로 한 명씩 배정
+        if (state.drawIndex === state.drawOrder.length) {
+          drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
+          showFinalModal();
+        }
       });
 
-      // 처음 진입 시 전체 초기화
+      // 최종 자리 배치 모달 닫기
+      closeFinalModalBtn.addEventListener("click", () => {
+        finalModal.classList.add("hidden");
+      });
+
+      // 모달 바깥을 클릭해도 닫히게 (선택 사항)
+      finalModal.addEventListener("click", (e) => {
+        if (e.target === finalModal) {
+          finalModal.classList.add("hidden");
+        }
+      });
+
+      // 처음 진입 시 초기화
       resetAll();
     });
   </script>
