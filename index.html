@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>자리 뽑기 시스템</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }
+
+    .section {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: inline-block;
+      margin: 4px 0;
+    }
+
+    input[type="number"],
+    input[type="text"],
+    textarea {
+      padding: 4px 6px;
+      margin: 4px 0;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 8px;
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #0070f3;
+      background-color: #0070f3;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .grid {
+      margin-top: 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .seat {
+      width: 44px;
+      height: 44px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      background-color: #fafafa;
+    }
+
+    .seat.excluded {
+      background-color: #eee;
+      color: #999;
+      border-style: dashed;
+    }
+
+    .seat.assigned {
+      background-color: #ffe08a;
+      border-color: #f2b100;
+      font-weight: bold;
+    }
+
+    .seat.disabled {
+      cursor: default;
+    }
+
+    .radio-group {
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .layout-two-columns {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .info {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .status-text {
+      margin-top: 8px;
+      font-size: 14px;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>자리 뽑기 시스템</h1>
+
+  <!-- 1. 설정 화면 -->
+  <div id="screen-config" class="screen active">
+    <div class="section">
+      <h2>1. 자리 설정</h2>
+      <div>
+        <label>행 수:
+          <input type="number" id="rowsInput" min="1" value="4" />
+        </label>
+        &nbsp;&nbsp;
+        <label>열 수:
+          <input type="number" id="colsInput" min="1" value="5" />
+        </label>
+        <br />
+        <button id="generateSeatsBtn">자리 생성</button>
+      </div>
+      <div class="info">
+        자리가 생성되면 칸을 클릭해서 제외할 자리를 선택할 수 있습니다.
+      </div>
+      <div id="seatGridConfig" class="grid"></div>
+    </div>
+
+    <div class="section">
+      <h2>2. 학생 입력하기</h2>
+
+      <div class="radio-group">
+        <label>
+          <input type="radio" name="studentMode" value="number" />
+          번호로 뽑기
+        </label>
+        &nbsp;&nbsp;
+        <label>
+          <input type="radio" name="studentMode" value="name" />
+          이름으로 뽑기
+        </label>
+      </div>
+
+      <!-- 번호로 뽑기 -->
+      <div id="studentNumberSection" class="hidden">
+        <label>시작 번호:
+          <input type="number" id="startNumberInput" min="1" />
+        </label>
+        &nbsp;
+        <label>끝 번호:
+          <input type="number" id="endNumberInput" min="1" />
+        </label>
+        <br />
+        <label>제외할 번호(콤마로 구분):<br />
+          <input type="text" id="excludeNumbersInput" placeholder="예: 3,7,15" />
+        </label>
+        <div class="info">
+          예) 시작 1, 끝 30, 제외 3,7,15 → 1~30 중 3,7,15를 제외한 번호로 뽑기
+        </div>
+      </div>
+
+      <!-- 이름으로 뽑기 -->
+      <div id="studentNameSection" class="hidden">
+        <label>이름들 (콤마로 구분해서 입력):</label><br />
+        <textarea id="namesInput" placeholder="예: 박민지, 이준형, 김단아"></textarea>
+        <div class="info">
+          예) <code>박민지, 이준형</code> 처럼 콤마(,)로 구분해서 입력하세요.
+        </div>
+      </div>
+
+      <button id="goToDrawBtn">다음 단계</button>
+      <div id="configStatus" class="status-text"></div>
+    </div>
+  </div>
+
+  <!-- 2. 추첨 화면 -->
+  <div id="screen-draw" class="screen">
+    <div class="section layout-two-columns">
+      <div>
+        <h2>3. 자리 배치</h2>
+        <div id="seatGridDraw" class="grid"></div>
+      </div>
+      <div>
+        <h2>4. 추첨 진행</h2>
+        <button id="drawSeatNumbersBtn">자리 번호 추첨</button><br />
+        <button id="startDrawBtn" style="margin-top: 8px;">추첨 시작</button>
+        <div class="info">
+          1) 먼저 "자리 번호 추첨"을 눌러 각 자리에 번호를 랜덤으로 부여합니다.<br />
+          2) 그 다음 "추첨 시작"을 누르면 학생을 한 명씩 뽑아 순서대로 자리에 배정합니다.
+        </div>
+        <div id="drawStatus" class="status-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ----- 상태 관리 -----
+    const state = {
+      rows: 0,
+      cols: 0,
+      excludedSeats: new Set(),  // "r-c" 형식
+      students: [],              // 이름 또는 번호 (문자열로)
+      studentMode: null,         // "number" 또는 "name"
+      seatNumbers: {},           // key: "r-c" -> 자리 번호 (1..N)
+      assignments: {},           // key: "r-c" -> 학생 (이름/번호)
+      seatNumbersAssigned: false,
+      drawingInProgress: false
+    };
+
+    // ----- 유틸 -----
+    function seatKey(row, col) {
+      return row + "-" + col;
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function getActiveSeats() {
+      const seats = [];
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const key = seatKey(r, c);
+          if (!state.excludedSeats.has(key)) {
+            seats.push({ row: r, col: c });
+          }
+        }
+      }
+      return seats;
+    }
+
+    function resetAll() {
+      // 전체 초기화 (자리 수/학생 수 불일치 등의 경우)
+      state.rows = 0;
+      state.cols = 0;
+      state.excludedSeats = new Set();
+      state.students = [];
+      state.studentMode = null;
+      state.seatNumbers = {};
+      state.assignments = {};
+      state.seatNumbersAssigned = false;
+      state.drawingInProgress = false;
+
+      document.getElementById("rowsInput").value = 4;
+      document.getElementById("colsInput").value = 5;
+      document.getElementById("seatGridConfig").innerHTML = "";
+      document.getElementById("studentNumberSection").classList.add("hidden");
+      document.getElementById("studentNameSection").classList.add("hidden");
+      document.querySelectorAll("input[name='studentMode']").forEach(r => r.checked = false);
+      document.getElementById("startNumberInput").value = "";
+      document.getElementById("endNumberInput").value = "";
+      document.getElementById("excludeNumbersInput").value = "";
+      document.getElementById("namesInput").value = "";
+      document.getElementById("configStatus").textContent = "";
+      document.getElementById("drawStatus").textContent = "";
+
+      document.getElementById("screen-config").classList.add("active");
+      document.getElementById("screen-draw").classList.remove("active");
+    }
+
+    // ----- 설정 화면: 자리 생성 -----
+    function renderConfigGrid() {
+      const grid = document.getElementById("seatGridConfig");
+      grid.innerHTML = "";
+      if (!state.rows || !state.cols) return;
+
+      grid.style.gridTemplateColumns = `repeat(${state.cols}, 44px)`;
+
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const key = seatKey(r, c);
+          const seatDiv = document.createElement("div");
+          seatDiv.className = "seat";
+          if (state.excludedSeats.has(key)) {
+            seatDiv.classList.add("excluded");
+          }
+          seatDiv.textContent = ""; // 설정 단계에서는 번호 없이 빈 칸
+          seatDiv.dataset.row = r;
+          seatDiv.dataset.col = c;
+
+          seatDiv.addEventListener("click", () => {
+            // 제외 토글
+            if (state.excludedSeats.has(key)) {
+              state.excludedSeats.delete(key);
+              seatDiv.classList.remove("excluded");
+            } else {
+              state.excludedSeats.add(key);
+              seatDiv.classList.add("excluded");
+            }
+          });
+
+          grid.appendChild(seatDiv);
+        }
+      }
+    }
+
+    // ----- 추첨 화면: 좌석 그리드 렌더링 -----
+    function renderDrawGrid() {
+      const grid = document.getElementById("seatGridDraw");
+      grid.innerHTML = "";
+      grid.style.gridTemplateColumns = `repeat(${state.cols}, 44px)`;
+
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const key = seatKey(r, c);
+          const seatDiv = document.createElement("div");
+          seatDiv.className = "seat disabled";
+
+          if (state.excludedSeats.has(key)) {
+            seatDiv.classList.add("excluded");
+            seatDiv.textContent = "X";
+          } else {
+            // 배정된 학생이 있으면 학생 이름/번호 표시
+            if (state.assignments[key]) {
+              seatDiv.classList.add("assigned");
+              seatDiv.textContent = state.assignments[key];
+            } else if (state.seatNumbers[key]) {
+              // 아직 배정 안 됐지만 자리 번호는 있음
+              seatDiv.textContent = state.seatNumbers[key];
+            } else {
+              seatDiv.textContent = "";
+            }
+          }
+
+          grid.appendChild(seatDiv);
+        }
+      }
+    }
+
+    // ----- 이벤트 바인딩 -----
+    document.addEventListener("DOMContentLoaded", () => {
+      const rowsInput = document.getElementById("rowsInput");
+      const colsInput = document.getElementById("colsInput");
+      const generateSeatsBtn = document.getElementById("generateSeatsBtn");
+      const goToDrawBtn = document.getElementById("goToDrawBtn");
+      const configStatus = document.getElementById("configStatus");
+
+      const studentNumberSection = document.getElementById("studentNumberSection");
+      const studentNameSection = document.getElementById("studentNameSection");
+
+      const startNumberInput = document.getElementById("startNumberInput");
+      const endNumberInput = document.getElementById("endNumberInput");
+      const excludeNumbersInput = document.getElementById("excludeNumbersInput");
+      const namesInput = document.getElementById("namesInput");
+
+      const drawSeatNumbersBtn = document.getElementById("drawSeatNumbersBtn");
+      const startDrawBtn = document.getElementById("startDrawBtn");
+      const drawStatus = document.getElementById("drawStatus");
+
+      // 학생 입력 방식 선택
+      document.querySelectorAll("input[name='studentMode']").forEach(radio => {
+        radio.addEventListener("change", (e) => {
+          const mode = e.target.value;
+          state.studentMode = mode;
+          if (mode === "number") {
+            studentNumberSection.classList.remove("hidden");
+            studentNameSection.classList.add("hidden");
+          } else {
+            studentNameSection.classList.remove("hidden");
+            studentNumberSection.classList.add("hidden");
+          }
+        });
+      });
+
+      // 자리 생성
+      generateSeatsBtn.addEventListener("click", () => {
+        const rows = parseInt(rowsInput.value, 10);
+        const cols = parseInt(colsInput.value, 10);
+
+        if (!rows || !cols || rows <= 0 || cols <= 0) {
+          alert("행 수와 열 수를 올바르게 입력하세요.");
+          return;
+        }
+
+        state.rows = rows;
+        state.cols = cols;
+        state.excludedSeats = new Set();
+        configStatus.textContent = "자리가 생성되었습니다. 제외할 자리를 클릭해서 선택하세요.";
+        renderConfigGrid();
+      });
+
+      // 다음 단계 (좌석 수 vs 학생 수 검증 후 추첨 화면으로 이동)
+      goToDrawBtn.addEventListener("click", () => {
+        if (!state.rows || !state.cols) {
+          alert("먼저 행 수와 열 수를 입력하고 '자리 생성'을 눌러 주세요.");
+          return;
+        }
+
+        if (!state.studentMode) {
+          alert("학생 입력 방식을 선택해 주세요. (번호로 뽑기 / 이름으로 뽑기)");
+          return;
+        }
+
+        const activeSeats = getActiveSeats();
+        const seatCount = activeSeats.length;
+        if (seatCount === 0) {
+          alert("사용 가능한 자리가 없습니다. 제외 자리를 다시 설정해 주세요.");
+          return;
+        }
+
+        let students = [];
+
+        if (state.studentMode === "number") {
+          const start = parseInt(startNumberInput.value, 10);
+          const end = parseInt(endNumberInput.value, 10);
+
+          if (!start || !end || start > end) {
+            alert("시작 번호와 끝 번호를 올바르게 입력하세요.");
+            return;
+          }
+
+          const excludeText = excludeNumbersInput.value.trim();
+          const excludeSet = new Set();
+          if (excludeText) {
+            excludeText.split(",").forEach(v => {
+              const num = parseInt(v.trim(), 10);
+              if (!isNaN(num)) excludeSet.add(num);
+            });
+          }
+
+          for (let n = start; n <= end; n++) {
+            if (!excludeSet.has(n)) {
+              students.push(String(n));
+            }
+          }
+        } else if (state.studentMode === "name") {
+          const text = namesInput.value.trim();
+          if (!text) {
+            alert("이름을 입력해 주세요.");
+            return;
+          }
+          students = text.split(",").map(v => v.trim()).filter(v => v.length > 0);
+        }
+
+        if (students.length === 0) {
+          alert("학생 목록이 비어 있습니다. 입력을 확인해 주세요.");
+          return;
+        }
+
+        if (students.length !== seatCount) {
+          alert("자리의 수와 학생의 수가 일치하지 않습니다. 다시 시도해주세요.");
+          resetAll();
+          return;
+        }
+
+        // 유효하면 상태 저장 후 추첨 화면으로 이동
+        state.students = students.slice();  // 복사
+        state.seatNumbers = {};
+        state.assignments = {};
+        state.seatNumbersAssigned = false;
+        state.drawingInProgress = false;
+
+        configStatus.textContent = "학생 수와 자리 수가 일치합니다. 추첨 화면으로 이동합니다.";
+
+        document.getElementById("screen-config").classList.remove("active");
+        document.getElementById("screen-draw").classList.add("active");
+        renderDrawGrid();
+        drawStatus.textContent = "먼저 '자리 번호 추첨' 버튼을 눌러 주세요.";
+      });
+
+      // 자리 번호 추첨
+      drawSeatNumbersBtn.addEventListener("click", () => {
+        if (state.drawingInProgress) {
+          alert("추첨이 진행 중입니다. 잠시만 기다려 주세요.");
+          return;
+        }
+
+        const activeSeats = getActiveSeats();
+        const n = activeSeats.length;
+        if (n === 0) {
+          alert("사용 가능한 자리가 없습니다.");
+          return;
+        }
+
+        const indices = Array.from({ length: n }, (_, i) => i);
+        shuffle(indices);
+
+        state.seatNumbers = {};
+        for (let i = 0; i < n; i++) {
+          const seat = activeSeats[indices[i]];
+          const key = seatKey(seat.row, seat.col);
+          state.seatNumbers[key] = i + 1; // 1번부터 시작
+        }
+        state.assignments = {};
+        state.seatNumbersAssigned = true;
+        renderDrawGrid();
+        drawStatus.textContent = "자리 번호가 랜덤으로 부여되었습니다. 이제 '추첨 시작'을 눌러 주세요.";
+      });
+
+      // 추첨 시작
+      startDrawBtn.addEventListener("click", () => {
+        if (!state.seatNumbersAssigned) {
+          alert("먼저 '자리 번호 추첨'을 해 주세요.");
+          return;
+        }
+        if (state.drawingInProgress) {
+          return;
+        }
+
+        const activeSeats = getActiveSeats().map(s => {
+          const key = seatKey(s.row, s.col);
+          return { ...s, seatNumber: state.seatNumbers[key] };
+        });
+        activeSeats.sort((a, b) => a.seatNumber - b.seatNumber);
+
+        let drawOrder = shuffle(state.students.slice());
+        let index = 0;
+
+        state.assignments = {};
+        state.drawingInProgress = true;
+        drawStatus.textContent = "추첨을 진행 중입니다...";
+
+        const intervalId = setInterval(() => {
+          if (index >= drawOrder.length) {
+            clearInterval(intervalId);
+            state.drawingInProgress = false;
+            drawStatus.textContent = "모든 학생 배정이 완료되었습니다.";
+            return;
+          }
+
+          const student = drawOrder[index];
+          const seat = activeSeats[index];
+          const key = seatKey(seat.row, seat.col);
+          state.assignments[key] = student;
+          renderDrawGrid();
+
+          drawStatus.textContent =
+            `${index + 1}번째 배정: ${student} → ${seat.seatNumber}번 자리`;
+
+          index++;
+        }, 800); // 0.8초 간격으로 한 명씩 배정
+      });
+
+      // 처음 진입 시 전체 초기화
+      resetAll();
+    });
+  </script>
+</body>
+</html>
